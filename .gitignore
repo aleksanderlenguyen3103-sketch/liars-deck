@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# PartyKit lokaler Dev-State (SQLite-Daten, nicht für Produktion)
+.partykit/state
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

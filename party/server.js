@@ -31,6 +31,9 @@ export default class LiarsDeckRoom {
     // Karten-ids, damit keine geheimen Karten verraten werden.
     this.selection = {}
     this.botCounter = 0
+    // Spieler die während eines laufenden Spiels getrennt wurden — ihr Zug wird
+    // automatisch übernommen (wie ein Bot), bis sie wieder verbinden.
+    this.disconnected = new Set()
   }
 
   // --- Sitzplatz-Verwaltung (Lobby) ---
@@ -96,9 +99,14 @@ export default class LiarsDeckRoom {
   // --- Verbindungs-Lebenszyklus ---
 
   onConnect(conn) {
-    // Läuft schon ein Spiel? Dann als Zuschauer beitreten (kein Sitzplatz).
+    // Läuft schon ein Spiel?
     if (this.game) {
-      conn.send(JSON.stringify({ type: 'welcome', selfId: conn.id, spectator: true }))
+      // Reconnect eines Spielers der während des Spiels getrennt wurde.
+      if (this.disconnected.has(conn.id)) {
+        this.disconnected.delete(conn.id)
+      }
+      const spectator = !this.game.players.some((p) => p.id === conn.id)
+      conn.send(JSON.stringify({ type: 'welcome', selfId: conn.id, spectator }))
       conn.send(this.stateMessageFor(conn.id))
       return
     }
@@ -146,16 +154,43 @@ export default class LiarsDeckRoom {
     }
   }
 
-  onClose(conn) {
+  async onClose(conn) {
     delete this.gaze[conn.id]
     delete this.selection[conn.id]
-    // Während eines Spiels bleibt der Sitzplatz erhalten (Reconnect möglich).
+
+    const wasHost = this.players.get(conn.id)?.isHost
+
     if (this.game) {
-      this.broadcastState()
+      // Noch verbundene menschliche Spieler ermitteln (conn ist bereits aus
+      // conns entfernt worden, taucht also hier nicht mehr auf).
+      const connectedIds = new Set([...this.room.getConnections()].map((c) => c.id))
+      const remainingHumans = [...this.players.values()].filter(
+        (p) => !p.isBot && p.id !== conn.id && connectedIds.has(p.id)
+      )
+
+      if (remainingHumans.length === 0) {
+        // Letzter Mensch hat den Raum verlassen -> alles zurücksetzen.
+        this.game = null
+        this.players.clear()
+        this.disconnected.clear()
+        this.gaze = {}
+        this.selection = {}
+        this.broadcastState()
+      } else {
+        // Spieler als "getrennt" markieren — sein Zug wird automatisch
+        // übernommen (wie ein Bot), bis er wieder verbindet.
+        this.disconnected.add(conn.id)
+        if (wasHost) {
+          this.players.get(conn.id).isHost = false
+          remainingHumans.sort((a, b) => a.slot - b.slot)[0].isHost = true
+        }
+        this.broadcastState()
+        // Falls der getrennte Spieler gerade am Zug war, sofort weiterführen.
+        await this.runBots()
+      }
       return
     }
 
-    const wasHost = this.players.get(conn.id)?.isHost
     this.players.delete(conn.id)
     const humans = [...this.players.values()].filter((p) => !p.isBot)
     if (humans.length === 0) {
@@ -236,10 +271,17 @@ export default class LiarsDeckRoom {
         guard += 1
         const actorId = currentActorId(this.game)
         const actor = this.game.players.find((p) => p.id === actorId)
-        if (!actor || !actor.isBot) break
+        if (!actor) break
 
-        // Nachdenkpause (~3 s; Roulette-Schuss mit etwas Spannung).
-        const thinkMs = this.game.phase === 'revolver' ? 2400 : 2600 + Math.floor(Math.random() * 900)
+        const isBot = actor.isBot
+        const isDisconnected = this.disconnected.has(actorId)
+        // Nur Bots und getrennte Spieler automatisch steuern.
+        if (!isBot && !isDisconnected) break
+
+        // Nachdenkpause: Bots ~3 s, getrennte Spieler kurz (0,8 s).
+        const thinkMs = this.game.phase === 'revolver'
+          ? (isBot ? 2400 : 600)
+          : (isBot ? 2600 + Math.floor(Math.random() * 900) : 800)
         await new Promise((r) => setTimeout(r, thinkMs))
         if (!this.game || currentActorId(this.game) !== actorId) continue
 
@@ -319,6 +361,7 @@ export default class LiarsDeckRoom {
       return this.sendError(sender, 'Nur der Host kann neu starten.')
     }
     this.game = null
+    this.disconnected.clear()
     this.broadcastState()
   }
 }
