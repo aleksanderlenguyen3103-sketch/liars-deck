@@ -115,7 +115,22 @@ function MainMenu({ onEnter }) {
 
 function Room({ roomId, onLeave }) {
   const room = usePartyRoom(roomId)
-  const { connected, error, lobby, game } = room
+  const { connected, error, lobby, game, kicked } = room
+
+  useEffect(() => {
+    if (kicked) {
+      const t = setTimeout(onLeave, 2500)
+      return () => clearTimeout(t)
+    }
+  }, [kicked, onLeave])
+
+  if (kicked) {
+    return (
+      <Shell>
+        <p className="text-xl font-semibold text-red-400">Du wurdest aus dem Raum entfernt.</p>
+      </Shell>
+    )
+  }
 
   // Im Spiel: Vollbild-3D-Szene mit HUD-Overlay.
   if (game) return <GameScreen room={room} roomId={roomId} onLeave={onLeave} connected={connected} error={error} />
@@ -156,7 +171,7 @@ function Room({ roomId, onLeave }) {
 // ---------------- Lobby ----------------
 
 function Lobby({ room, roomId }) {
-  const { selfId, lobby, setName, startGame, addBot, removeBot } = room
+  const { selfId, lobby, setName, startGame, addBot, removeBot, kick } = room
   const botCount = lobby.players.filter((p) => p.isBot).length
   const hasFreeSlot = lobby.players.length < lobby.maxPlayers
   const [nameDraft, setNameDraft] = useState('')
@@ -199,13 +214,23 @@ function Lobby({ room, roomId }) {
                 <span className="font-medium text-neutral-100">{p.name}</span>
                 {p.id === selfId && <span className="text-xs text-amber-400">(du)</span>}
               </span>
-              {p.isBot ? (
-                <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-xs font-semibold text-sky-300">Bot</span>
-              ) : (
-                p.id === lobby.hostId && (
-                  <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-semibold text-amber-300">Host</span>
-                )
-              )}
+              <span className="flex items-center gap-2">
+                {p.isBot ? (
+                  <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-xs font-semibold text-sky-300">Bot</span>
+                ) : (
+                  p.id === lobby.hostId && (
+                    <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-semibold text-amber-300">Host</span>
+                  )
+                )}
+                {isHost && !p.isBot && p.id !== selfId && (
+                  <button
+                    onClick={() => kick(p.id)}
+                    className="rounded px-2 py-0.5 text-xs text-red-400 hover:bg-red-950/40 hover:text-red-300 transition"
+                  >
+                    Entfernen
+                  </button>
+                )}
+              </span>
             </li>
           ))}
           {Array.from({ length: lobby.maxPlayers - lobby.players.length }).map((_, i) => (

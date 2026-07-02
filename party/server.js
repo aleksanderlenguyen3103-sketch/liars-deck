@@ -147,6 +147,8 @@ export default class LiarsDeckRoom {
         return this.handleAddBot(sender)
       case 'removeBot':
         return this.handleRemoveBot(sender)
+      case 'kick':
+        return this.handleKick(sender, data)
       case 'restart':
         return this.handleRestart(sender)
       default:
@@ -352,6 +354,31 @@ export default class LiarsDeckRoom {
       ? [...new Set(data.indices.filter((i) => Number.isInteger(i) && i >= 0 && i < 5))].slice(0, 3)
       : []
     this.selection[sender.id] = idx
+    this.broadcastState()
+  }
+
+  handleKick(sender, data) {
+    if (this.game) return
+    if (sender.id !== this.hostId()) {
+      return this.sendError(sender, 'Nur der Host kann Spieler entfernen.')
+    }
+    const targetId = data.playerId
+    if (!targetId || targetId === sender.id) return
+    const target = this.players.get(targetId)
+    if (!target || target.isBot) return
+
+    // Verbundenen Spieler benachrichtigen und Verbindung schließen (löst onClose aus).
+    for (const conn of this.room.getConnections()) {
+      if (conn.id === targetId) {
+        conn.send(JSON.stringify({ type: 'kicked' }))
+        conn.close()
+        return
+      }
+    }
+    // Spieler ist gerade nicht verbunden — direkt aus dem Roster entfernen.
+    this.players.delete(targetId)
+    const humans = [...this.players.values()].filter((p) => !p.isBot)
+    if (humans.length === 0) this.players.clear()
     this.broadcastState()
   }
 

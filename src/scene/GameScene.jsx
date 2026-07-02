@@ -222,6 +222,10 @@ function Figure({ color, isShooter, gazePoint, poseTarget, pose, seatX, seatZ, b
     // sichtbar zu ihren Karten; der Körper zeigt dabei bereits dorthin (yaw).
     cur.current.lean += (bend - cur.current.lean) * k
     if (bodyRef.current) {
+      // YXZ-Reihenfolge: erst yaw (um Welt-Y drehen), dann lean um die LOKALE
+      // X-Achse des Körpers — so neigt der Kopf immer zu den eigenen Karten,
+      // egal wo der Spieler am Tisch sitzt.
+      bodyRef.current.rotation.order = 'YXZ'
       bodyRef.current.rotation.y = cur.current.yaw
       bodyRef.current.rotation.x = cur.current.lean
     }
@@ -250,7 +254,8 @@ function Seat({ player, displayIndex, total, isSelf, isCurrent, isShooter, gazeP
 
   return (
     <group position={[x, 0, z]}>
-      <Figure color={color} isShooter={isShooter} gazePoint={gazePoint} pose={pose} poseTarget={poseTarget} seatX={x} seatZ={z} bend={bend} />
+      {/* Eigene Figur nicht rendern — Kamera sitzt im Kopf des eigenen Avatars */}
+      {!isSelf && <Figure color={color} isShooter={isShooter} gazePoint={gazePoint} pose={pose} poseTarget={poseTarget} seatX={x} seatZ={z} bend={bend} />}
       <Balloons lives={player.lives} alive={player.alive} color={color} position={balloonPos} />
       {player.alive && (
         <HeldHand

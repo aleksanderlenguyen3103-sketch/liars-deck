@@ -13,6 +13,7 @@ export function usePartyRoom(roomId) {
   const [gaze, setGaze] = useState({}) // Blickrichtung pro Spieler (Blick-Sync)
   const [selection, setSelection] = useState({}) // hochgezogene Karten pro Spieler
   const [error, setError] = useState(null)
+  const [kicked, setKicked] = useState(false)
   const socketRef = useRef(null)
 
   useEffect(() => {
@@ -47,6 +48,9 @@ export function usePartyRoom(roomId) {
           setGaze(data.gaze || {})
           setSelection(data.selection || {})
           break
+        case 'kicked':
+          setKicked(true)
+          break
         case 'error':
           setError(data.message)
           // Fehler nach kurzer Zeit ausblenden.
@@ -66,6 +70,7 @@ export function usePartyRoom(roomId) {
       setGame(null)
       setGaze({})
       setSelection({})
+      setKicked(false)
     }
   }, [roomId])
 
@@ -85,6 +90,8 @@ export function usePartyRoom(roomId) {
     gaze,
     selection,
     error,
+    kicked,
+    kick: (playerId) => send({ type: 'kick', playerId }),
     setName: (name) => send({ type: 'setName', name }),
     sendGaze: (target) => send({ type: 'gaze', target }),
     sendSelection: (indices) => send({ type: 'selection', indices }),
