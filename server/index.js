@@ -40,7 +40,10 @@ wss.on('connection', (ws, req) => {
   if (!roomId) { ws.close(); return }
 
   // partysocket sendet ?_pk=ID für stabile Reconnect-Identität → als connId nutzen.
-  const connId = url.searchParams.get('_pk') || crypto.randomUUID()
+  // Ist dieselbe _pk aber schon aktiv verbunden (gleicher Browser, zweiter Tab),
+  // bekommt der neue Tab eine frische UUID — sonst würde er den ersten Tab überschreiben.
+  const pk = url.searchParams.get('_pk') || crypto.randomUUID()
+  const connId = conns.get(roomId)?.has(pk) ? crypto.randomUUID() : pk
 
   const conn = {
     id: connId,
