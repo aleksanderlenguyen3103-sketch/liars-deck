@@ -316,51 +316,7 @@ function CopyLinkButton({ roomId }) {
 
 // ---------------- Spiel ----------------
 
-const RANK_LABEL = { ACE: 'A', KING: 'K', QUEEN: 'Q', JOKER: '★' }
 const THEME_LABEL = { ACE: 'Ass', KING: 'König', QUEEN: 'Dame' }
-
-function Balloons({ lives, alive }) {
-  if (!alive) return <span title="ausgeschieden" className="text-xl">💀</span>
-  return (
-    <span className="tracking-tight">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <span key={i} className={i < lives ? '' : 'opacity-20 grayscale'}>🎈</span>
-      ))}
-    </span>
-  )
-}
-
-function Card({ rank, selected, onClick, disabled }) {
-  const isJoker = rank === 'JOKER'
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`flex h-24 w-16 flex-col items-center justify-center rounded-lg border-2 text-2xl font-bold shadow-lg transition ${
-        selected ? '-translate-y-3 border-amber-400 bg-amber-100 text-black ring-2 ring-amber-400' : 'border-neutral-600 bg-neutral-100 text-black'
-      } ${isJoker ? 'text-purple-700' : ''} ${disabled ? 'cursor-default opacity-90' : 'hover:-translate-y-1'}`}
-    >
-      <span>{RANK_LABEL[rank]}</span>
-      <span className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
-        {isJoker ? 'Joker' : rank}
-      </span>
-    </button>
-  )
-}
-
-// Aufgedeckte Karte beim Roulette: grün = passte zum Theme, rot = Bluff.
-function RevealCard({ rank, theme }) {
-  const ok = rank === theme || rank === 'JOKER'
-  return (
-    <span
-      className={`inline-flex h-12 w-9 flex-col items-center justify-center rounded border-2 text-sm font-bold ${
-        ok ? 'border-green-500 bg-green-500/10 text-green-300' : 'border-red-500 bg-red-500/10 text-red-300'
-      }`}
-    >
-      {RANK_LABEL[rank]}
-    </span>
-  )
-}
 
 function formatEvent(ev, nameOf) {
   switch (ev.type) {

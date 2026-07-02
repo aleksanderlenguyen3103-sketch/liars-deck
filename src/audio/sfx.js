@@ -68,21 +68,6 @@ function envelope(gain, t0, attack, decay, peak) {
   gain.exponentialRampToValueAtTime(0.0001, t0 + attack + decay)
 }
 
-function noise(c, dur, filterType, freq, q, peak, decay) {
-  const src = c.createBufferSource()
-  src.buffer = noiseBuffer(c, dur)
-  const f = c.createBiquadFilter()
-  f.type = filterType
-  f.frequency.value = freq
-  if (q != null) f.Q.value = q
-  const g = c.createGain()
-  envelope(g.gain, c.currentTime, 0.002, decay, peak)
-  src.connect(f).connect(g).connect(master)
-  src.start()
-  src.stop(c.currentTime + dur)
-  return f
-}
-
 function tone(c, type, f0, f1, dur, peak, delay = 0) {
   const o = c.createOscillator()
   o.type = type

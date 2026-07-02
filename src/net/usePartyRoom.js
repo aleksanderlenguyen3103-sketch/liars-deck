@@ -50,6 +50,10 @@ export function usePartyRoom(roomId) {
           break
         case 'kicked':
           setKicked(true)
+          // PartySocket reconnected sonst automatisch (auch nach einem
+          // serverseitigen close) und der Spieler würde unbemerkt wieder
+          // in der Lobby landen. Eigenes close() beendet das Retry-Verhalten.
+          socket.close()
           break
         case 'error':
           setError(data.message)

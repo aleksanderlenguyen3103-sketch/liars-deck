@@ -9,7 +9,6 @@ import { getFaceTexture, getBackTexture, getFeltTexture } from './cardTexture'
 // Lampe, Sitzplätze mit Platzhalter-Figuren, Ballons (Leben), schwebende
 // Theme-Karte. Die Spiel-Logik bleibt im Server; diese Szene ist nur Anzeige.
 
-const RANK_LABEL = { ACE: 'A', KING: 'K', QUEEN: 'Q', JOKER: 'J' }
 const SEAT_RADIUS = 3.0
 const TABLE_TOP = 1.0
 const TABLE_RADIUS = 1.8 // kleinerer Tisch -> Karten landen gut erreichbar in der Mitte

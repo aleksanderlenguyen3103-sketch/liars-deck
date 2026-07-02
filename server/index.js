@@ -54,6 +54,12 @@ wss.on('connection', (ws, req) => {
   if (!conns.has(roomId)) conns.set(roomId, new Map())
   conns.get(roomId).set(connId, conn)
 
+  // Heartbeat: erkennt Verbindungen, die ohne sauberen Close wegfallen (WLAN-
+  // Abbruch, zugeklappter Laptop, gedrosselter Hintergrund-Tab). Ohne das bliebe
+  // der Spieler als „Geist" für immer im Raum-Roster stehen.
+  ws.isAlive = true
+  ws.on('pong', () => { ws.isAlive = true })
+
   const room = getRoom(roomId)
   room.onConnect(conn)
 
@@ -72,6 +78,21 @@ wss.on('connection', (ws, req) => {
 
   ws.on('error', (err) => console.error(`[${roomId}/${connId}]`, err.message))
 })
+
+// Alle 30s: unbeantwortete Verbindungen (kein Pong seit dem letzten Ping)
+// hart trennen -> löst den normalen 'close'-Pfad aus und räumt den Spieler auf.
+const heartbeatInterval = setInterval(() => {
+  for (const ws of wss.clients) {
+    if (ws.isAlive === false) {
+      ws.terminate()
+      continue
+    }
+    ws.isAlive = false
+    ws.ping()
+  }
+}, 30000)
+
+wss.on('close', () => clearInterval(heartbeatInterval))
 
 httpServer.listen(PORT, () => {
   console.log(`Liar's Deck server läuft auf Port ${PORT}`)
